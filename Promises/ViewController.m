@@ -9,10 +9,12 @@
 #import "ViewController.h"
 
 
+@class Promise;
 
 typedef void(^SuccessHandler)(id result);
 typedef void(^ErrorHandler)(NSError *error);
-
+typedef Promise *(^ChainHandler)(id result);
+typedef id(^ChainDo)(id result);
 
 
 typedef enum {
@@ -30,6 +32,10 @@ typedef enum {
 
 - (Promise *)whenFulfilled:(SuccessHandler)success;
 - (Promise *)whenRejected:(ErrorHandler)error;
+
+- (Promise *)thenContinueWith:(ChainHandler)chain;
+- (id)thenDo:(ChainDo)chain;
+- (void)done:(ChainDo)chain;
 
 @end
 
@@ -52,6 +58,18 @@ typedef enum {
     return self;
 }
 
+- (Promise *)thenContinueWith:(ChainHandler)chain {
+    return chain(nil);
+}
+
+- (Promise *)thenDo:(ChainDo)chain {
+    return self;
+}
+
+- (void)done:(ChainDo)chain {
+    chain(nil);
+}
+
 - (void)setFulfilledWithResult:(id)result {
     
 }
@@ -66,10 +84,6 @@ typedef enum {
 
 
 
-
-@interface ViewController ()
-
-@end
 
 
 
@@ -98,7 +112,7 @@ typedef enum {
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    
+    //V 1.0
     Promise *promisedResult = [self someAsyncTask];
     
     [promisedResult whenFulfilled:^(id result) {
@@ -109,12 +123,13 @@ typedef enum {
         //Fail with error 'error'
     }];
     
-    
+    //V 2.0
     [[[self someAsyncTask] whenFulfilled:^(id result) {
         //Success with result 'result'
     }] whenRejected:^(NSError *error) {
         //Fail with error 'error'
     }];
+    
 }
 
 - (Promise *)someAsyncTask {
@@ -127,6 +142,60 @@ typedef enum {
     }];
     
     return p;
+}
+
+@end
+
+
+
+
+
+
+
+@implementation ViewController (Example2_Chaining)
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    
+    //Example2 - Continue
+    [[[self someAsyncTask] thenContinueWith:^Promise *(id result) {
+        return [self someOtherAsyncTaskWithParam:result];
+    }] whenFulfilled:^(id result) {
+        //Both tasks end and result is the last one
+    }];
+    
+    
+    [self someAsyncTaskOnSuccess:^(id result) {
+        
+        [self someAsyncTaskOnSuccess:^(id result) {
+            //Both tasks end and result is the last one
+        } onError:^(NSError *error) {
+            //Fail with error 'error'
+        }];
+        
+    } onError:^(NSError *error) {
+        //Fail with error 'error'
+    }];
+    
+    
+    //Example2 - Do
+    
+    [[[[self someAsyncTask] thenDo:^id(id result) {
+        return @([result integerValue] + 1);
+    }] thenDo:^id(id result) {
+        return @([result integerValue] + 2);
+    }] done:^id(id result) {
+        //Final result: 3
+        return nil;
+    }];
+    
+    
+}
+
+
+- (Promise *)someOtherAsyncTaskWithParam:(id)param {
+    return nil;
 }
 
 @end
