@@ -8,22 +8,35 @@
 
 #import "ViewController.h"
 
+
+
+typedef void(^SuccessHandler)(id result);
+typedef void(^ErrorHandler)(NSError *error);
+
+
+
 @interface ViewController ()
 
 @end
 
+
+
 @implementation ViewController
 
-- (void)viewDidLoad
-{
+- (void)viewDidLoad {
     [super viewDidLoad];
-	// Do any additional setup after loading the view, typically from a nib.
+    
+    [self someAsyncTaskOnSuccess:^(id result) {
+        //Success with result 'result'
+    } onError:^(NSError *error) {
+        //Fail with error 'error'
+    }];
 }
 
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+
+- (void)someAsyncTaskOnSuccess:(SuccessHandler)success onError:(ErrorHandler)error {
+    
 }
+
 
 @end
