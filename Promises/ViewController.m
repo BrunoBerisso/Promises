@@ -7,75 +7,32 @@
 //
 
 #import "ViewController.h"
+#import <BFTask.h>
+#import <BFTaskCompletionSource.h>
 
 
-@class Promise;
 
-typedef void(^SuccessHandler)(id result);
-typedef void(^ErrorHandler)(NSError *error);
-typedef Promise *(^ChainHandler)(id result);
-typedef id(^ChainDo)(id result);
+@interface AsyncStringGen : NSObject
 
-
-typedef enum {
-    PromisePending,
-    PromiseFulfilled,
-    PromiseRejected
-} PromiseState;
-
-
-@interface Promise : NSObject
-@property (nonatomic) PromiseState state;
-
-- (void)setFulfilledWithResult:(id)result;
-- (void)setRejectedWithError:(NSError *)error;
-
-- (Promise *)whenFulfilled:(SuccessHandler)success;
-- (Promise *)whenRejected:(ErrorHandler)error;
-
-- (Promise *)thenContinueWith:(ChainHandler)chain;
-- (id)thenDo:(ChainDo)chain;
-- (void)done:(ChainDo)chain;
++ (BFTask *)generate;
 
 @end
 
+@implementation AsyncStringGen
 
-@implementation Promise
-
-- (id)init {
-    self = [super init];
-    if (self)
-        self.state = PromisePending;
++ (BFTask *)generate {
+    BFTaskCompletionSource *completionSource = [BFTaskCompletionSource taskCompletionSource];
     
-    return self;
-}
-
-- (Promise *)whenFulfilled:(SuccessHandler)success {
-    return self;
-}
-
-- (Promise *)whenRejected:(ErrorHandler)error {
-    return self;
-}
-
-- (Promise *)thenContinueWith:(ChainHandler)chain {
-    return chain(nil);
-}
-
-- (Promise *)thenDo:(ChainDo)chain {
-    return self;
-}
-
-- (void)done:(ChainDo)chain {
-    chain(nil);
-}
-
-- (void)setFulfilledWithResult:(id)result {
+    int seconds = arc4random_uniform(3);
+    int stringLenght = 5;
     
-}
-
-- (void)setRejectedWithError:(NSError *)error {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(seconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        char data[stringLenght];
+        for (int x = 0; x < stringLenght; data[x++] = (char)('A' + (arc4random_uniform(26))));
+        [completionSource setResult:[[NSString alloc] initWithBytes:data length:stringLenght encoding:NSUTF8StringEncoding]];
+    });
     
+    return completionSource.task;
 }
 
 @end
@@ -87,115 +44,19 @@ typedef enum {
 
 
 
-@implementation ViewController (Example1)
+
+
+
+
+@implementation ViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    [self someAsyncTaskOnSuccess:^(id result) {
-        //Success with result 'result'
-    } onError:^(NSError *error) {
-        //Fail with error 'error'
-    }];
-}
-
-- (void)someAsyncTaskOnSuccess:(SuccessHandler)success onError:(ErrorHandler)error {
-    
-}
-
-@end
-
-
-
-@implementation ViewController (Example1_Promise)
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    
-    //V 1.0
-    Promise *promisedResult = [self someAsyncTask];
-    
-    [promisedResult whenFulfilled:^(id result) {
-        //Success with result 'result'
-    }];
-    
-    [promisedResult whenRejected:^(NSError *error) {
-        //Fail with error 'error'
-    }];
-    
-    //V 2.0
-    [[[self someAsyncTask] whenFulfilled:^(id result) {
-        //Success with result 'result'
-    }] whenRejected:^(NSError *error) {
-        //Fail with error 'error'
-    }];
-    
-}
-
-- (Promise *)someAsyncTask {
-    Promise *p = [Promise new]; //p.state == PromisePending;
-    
-    [self someAsyncTaskOnSuccess:^(id result) {
-        [p setFulfilledWithResult:result]; //p.state == PromiseFulfilled;
-    } onError:^(NSError *error) {
-        [p setRejectedWithError:error]; //p.state == PromiseRejected;
-    }];
-    
-    return p;
-}
-
-@end
-
-
-
-
-
-
-
-@implementation ViewController (Example2_Chaining)
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    
-    
-    //Example2 - Continue
-    [[[self someAsyncTask] thenContinueWith:^Promise *(id result) {
-        return [self someOtherAsyncTaskWithParam:result];
-    }] whenFulfilled:^(id result) {
-        //Both tasks end and result is the last one
-    }];
-    
-    
-    [self someAsyncTaskOnSuccess:^(id result) {
-        
-        [self someAsyncTaskOnSuccess:^(id result) {
-            //Both tasks end and result is the last one
-        } onError:^(NSError *error) {
-            //Fail with error 'error'
-        }];
-        
-    } onError:^(NSError *error) {
-        //Fail with error 'error'
-    }];
-    
-    
-    //Example2 - Do
-    
-    [[[[self someAsyncTask] thenDo:^id(id result) {
-        return @([result integerValue] + 1);
-    }] thenDo:^id(id result) {
-        return @([result integerValue] + 2);
-    }] done:^id(id result) {
-        //Final result: 3
+    [[AsyncStringGen generate] continueWithBlock:^id(BFTask *task) {
+        NSLog(@"%@", task.result);
         return nil;
     }];
-    
-    
-}
-
-
-- (Promise *)someOtherAsyncTaskWithParam:(id)param {
-    return nil;
 }
 
 @end
