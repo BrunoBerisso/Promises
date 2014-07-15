@@ -70,17 +70,17 @@ NSString *randomStringOfLenght(int stringLenght) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    [[AsyncStringGen generate] continueWithBlock:^id(BFTask *task) {
+    [[[AsyncStringGen generate] continueWithSuccessBlock:^id(BFTask *task) {
         
-        if (task.error) {
-            NSLog(@"Generation fail with error: %@", task.error);
-        } else if (task.exception) {
-            NSLog(@"Generation fail with exception: %@", task.exception);
-        } else if (task.isCancelled) {
-            NSLog(@"Generation calceled");
-        } else
-            self.resultLabel.text = task.result;
+        NSString *string = [NSString stringWithFormat:@"First random string: %@", task.result];
+        self.resultLabel.text = string;
         
+        string = [string stringByAppendingString:@"\nSecond random string: "];
+        return [AsyncStringGen generateAndAppendTo:string];
+        
+    }] continueWithSuccessBlock:^id(BFTask *task) {
+        
+        self.resultLabel.text = task.result;
         return nil;
     }];
 }
