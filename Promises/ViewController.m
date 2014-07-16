@@ -70,23 +70,18 @@ NSString *randomStringOfLenght(int stringLenght) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    __block NSString *partialResults;
     NSArray *someStrings = @[@"First ", @"Second ", @"Third "];
-    BFTask *serialTask = [BFTask taskWithResult:nil];
+    NSMutableArray *parallelTasks = [NSMutableArray array];
     
-    for (NSString *string in someStrings) {
-        serialTask = [serialTask continueWithSuccessBlock:^id(BFTask *task) {
-            
-            NSLog(@"Partial result: %@", task.result);
-            
-            NSString *previousResult = task.result ?: @"";
-            NSString *newString = [previousResult stringByAppendingFormat:@" - %@", string];
-            
-            return [AsyncStringGen generateAndAppendTo:newString];
-        }];
-    }
+    for (NSString *string in someStrings)
+        [parallelTasks addObject:[[AsyncStringGen generateAndAppendTo:string] continueWithBlock:^id(BFTask *task) {
+            partialResults = [partialResults ?: @"" stringByAppendingFormat:@" - %@",task.result];
+            return nil;
+        }]];
     
-    [serialTask continueWithBlock:^id(BFTask *task) {
-        self.resultLabel.text = task.result;
+    [[BFTask taskForCompletionOfAllTasks:parallelTasks] continueWithBlock:^id(BFTask *task) {
+        self.resultLabel.text = partialResults;
         return nil;
     }];
 }
