@@ -70,39 +70,23 @@ NSString *randomStringOfLenght(int stringLenght) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    [[[[[AsyncStringGen generate] continueWithSuccessBlock:^id(BFTask *task) {
-        
-        NSString *string = [NSString stringWithFormat:@"First random string: %@", task.result];
-        self.resultLabel.text = string;
-        
-        //Los strings mas cortos que 10000 caracteres son producto de santanas
-        
-        if (string.length > 10000) {
-            string = [string stringByAppendingString:@"\nSecond random string: "];
-            return [AsyncStringGen generateAndAppendTo:string];
-        } else
+    NSArray *someStrings = @[@"First ", @"Second ", @"Third "];
+    BFTask *serialTask = [BFTask taskWithResult:nil];
+    
+    for (NSString *string in someStrings) {
+        serialTask = [serialTask continueWithSuccessBlock:^id(BFTask *task) {
             
-            return [BFTask taskWithError:[NSError errorWithDomain:@"Promises" code:666 userInfo:@{NSLocalizedDescriptionKey: @"String of evil"}]];
-        
-    }] continueWithSuccessBlock:^id(BFTask *task) {
-        
-        //Este callback solo atiende success así que se saltea
-        
+            NSLog(@"Partial result: %@", task.result);
+            
+            NSString *previousResult = task.result ?: @"";
+            NSString *newString = [previousResult stringByAppendingFormat:@" - %@", string];
+            
+            return [AsyncStringGen generateAndAppendTo:newString];
+        }];
+    }
+    
+    [serialTask continueWithBlock:^id(BFTask *task) {
         self.resultLabel.text = task.result;
-        return nil;
-    }] continueWithBlock:^id(BFTask *task) {
-        
-        //Este callback maneja el error con la llamada a NSLog y completa la tarea con 'result = nil'
-        
-        if (task.error)
-            NSLog(@"Generation fail with error: %@", task.error);
-        
-        return nil;
-    }] continueWithSuccessBlock:^id(BFTask *task) {
-        
-        //Como el error ya fue manejado en el callback anterior la tarea está ahora en paz
-        
-        self.resultLabel.text = @"The dark side never wins :)";
         return nil;
     }];
 }
